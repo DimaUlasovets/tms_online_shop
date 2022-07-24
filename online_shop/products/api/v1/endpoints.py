@@ -1,26 +1,52 @@
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from products.api.v1.serializers import (
     BrandSerializer,
     CategorySerializer,
     ProductSerializer,
 )
 from products.models import Brand, Category, Product
+from products.paginations import PaginationHandlerMixin
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
-class ProductList(APIView):
+class BasicPagination(PageNumberPagination):
+    page_size_query_param = "limit"
+
+
+class ProductList(APIView, PaginationHandlerMixin):
     """
     List all products.
     """
 
-    def get(self, request, format=None):
+    permission_classes = [AllowAny]
+    pagination_class = BasicPagination
+
+    def get(self, request, format=None, *args, **kwargs):
+
+        category = self.request.query_params.get("category", None)
+        brend = self.request.query_params.get("title", None)
+
         products = Product.objects.all()
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+
+        if category:
+            products = products.filter(category__name__contains=category)
+        if brend:
+            products = products.filter(brend__name__contains=brend)
+
+        page = self.paginate_queryset(products)
+
+        if page is not None:
+            serializer = self.get_paginated_response(ProductSerializer(page, many=True).data)
+        else:
+            serializer = ProductSerializer(products, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, format=None):
         serializer = ProductSerializer(data=request.data)
@@ -34,6 +60,8 @@ class ProductDetail(APIView):
     """
     Single product by id
     """
+
+    permission_classes = [AllowAny]
 
     def get_single_product(self, pk):
         return get_object_or_404(Product, pk=pk)
@@ -65,15 +93,24 @@ class ProductDetail(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CategoryList(APIView):
+class CategoryList(APIView, PaginationHandlerMixin):
     """
     List all Categorys.
     """
 
+    permission_classes = [AllowAny]
+    pagination_class = BasicPagination
+
     def get(self, request, format=None):
         category = Category.objects.all()
-        serializer = CategorySerializer(category, many=True)
-        return Response(serializer.data)
+        page = self.paginate_queryset(category)
+
+        if page is not None:
+            serializer = self.get_paginated_response(CategorySerializer(page, many=True).data)
+        else:
+            serializer = CategorySerializer(category, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, format=None):
         serializer = CategorySerializer(data=request.data)
@@ -87,6 +124,8 @@ class CategoryDetail(APIView):
     """
     Single category by id
     """
+
+    permission_classes = [AllowAny]
 
     def get_single_category(self, pk):
         return get_object_or_404(Category, pk=pk)
@@ -118,15 +157,24 @@ class CategoryDetail(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class BrandList(APIView):
+class BrandList(APIView, PaginationHandlerMixin):
     """
     List all Brands.
     """
 
+    permission_classes = [AllowAny]
+    pagination_class = BasicPagination
+
     def get(self, request, format=None):
         brand = Brand.objects.all()
-        serializer = BrandSerializer(brand, many=True)
-        return Response(serializer.data)
+        page = self.paginate_queryset(brand)
+
+        if page is not None:
+            serializer = self.get_paginated_response(BrandSerializer(page, many=True).data)
+        else:
+            serializer = BrandSerializer(brand, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, format=None):
         serializer = BrandSerializer(data=request.data)
@@ -140,6 +188,8 @@ class BrandDetail(APIView):
     """
     Single brand by id
     """
+
+    permission_classes = [AllowAny]
 
     def get_single_brand(self, pk):
         return get_object_or_404(Brand, pk=pk)
